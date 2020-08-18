@@ -1,0 +1,20 @@
+name: charm-operator-grafana
+summary: Describe your charm here
+maintainers:
+    - Justin Clark <justin.clark@canonical.com>
+description: |
+    A nice long description of what the product does and any
+    high level information about how the charm provides the product,
+    on which platform, etc.
+tags:
+    - misc
+series:
+    - bionic
+    - xenial
+# -- example relations, delete if unneeded
+#requires:
+#    db:
+#        interface: mysql
+#provides:
+#    website:
+#        interface: http
