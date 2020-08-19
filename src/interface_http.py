@@ -11,6 +11,9 @@ log = logging.getLogger()
 
 
 class ServerDetails:
+    """This will be used by Grafana to connect to
+    a proper data source for dashboards.
+    """
 
     def __init__(self, host=None, port=None):
         self._host = host
@@ -83,10 +86,12 @@ class Client(Object):
         # emit the server details of the http connection
         # which will give Grafana access to the data source
 
-        # if there is no available unit,
+        # if there is no available unit, defer this event
         if event.unit is None:
             event.defer()  # TODO: verify that this is correct thing to do
             return
+
+        # TODO: need confirmation that 'ingress address' is always available
         host = event.relation.data[event.unit].get('ingress-address')
         port = event.relation.data[event.unit].get('port')
         if host is None or port is None:
