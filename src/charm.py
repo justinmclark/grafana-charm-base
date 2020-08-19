@@ -10,12 +10,14 @@ from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus
+import interface_http
 
 log = logging.getLogger()
 
 
-class GrafanaCharm(CharmBase):
-    """Grafana-Kubernetes charm to work as part of LMA stack."""
+class GrafanaBase(CharmBase):
+    """ The GrafanaBase class defines the common characteristics between the
+        Kubernetes and traditional Grafana charms such as """
 
     state = StoredState()
 
@@ -25,40 +27,12 @@ class GrafanaCharm(CharmBase):
 
         # -- get container image
         self.grafana_image = OCIImageResource(self, 'grafana-image')
+        self.grafana_source = interface_http.Client(self, 'grafana-source')
 
         # -- standard hook observation
-        self.framework.observe(self.on.start, self.set_pod_spec)
-        self.framework.observe(self.on.config_changed, self.set_pod_spec)
+        # TODO: find k8s/traditional agnostic things to observe
 
         # -- initialize states --
         self.state.set_default(configured=False)
         self.state.set_default(started=False)
 
-    def set_pod_spec(self, event):
-        if not self.model.unit.is_leader():
-            log.info('Unit is not leader. Skipping set_pod_spec.')
-            self.model.unit.status = ActiveStatus()
-            return
-
-        log.info('Unit is leader. Setting pod spec.')
-        try:
-            grafana_image_details = self.grafana_image.fetch()
-        except OCIImageResourceError as e:
-            self.model.unit.status = e.status
-            return
-
-    def make_pod_spec(self):
-        # create the juju pod spec
-        pod_spec = {
-            'version': 3,
-            'containers': [
-                {
-
-                }
-            ]
-        }
-
-
-if __name__ == "__main__":
-    from ops.main import main
-    main(GrafanaCharm)

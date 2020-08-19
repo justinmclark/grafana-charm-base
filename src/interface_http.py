@@ -1,5 +1,4 @@
-import sys
-sys.path.append('lib')
+import logging
 
 from ops.framework import (
     EventBase,
@@ -7,6 +6,8 @@ from ops.framework import (
     Object,
     ObjectEvents,
 )
+
+log = logging.getLogger()
 
 
 class ServerDetails:
@@ -25,11 +26,8 @@ class ServerDetails:
 
     @classmethod
     def restore(cls, snapshot):
-        if snapshot:
-            return cls(host=snapshot['server_details.host'],
-                       port=snapshot['server_details.port'])
-        else:
-            return None
+        return cls(host=snapshot['server_details.host'],
+                   port=snapshot['server_details.port'])
 
     def snapshot(self):
         return {
@@ -63,11 +61,17 @@ class ClientEvents(ObjectEvents):
 
 
 class Client(Object):
+    """This class represents the client side of the Grafana
+    HTTP interface. The only observed event is a relation
+    changed event.
+    """
     on = ClientEvents()
 
     def __init__(self, charm, relation_name):
         super().__init__(charm, relation_name)
         self._relation_name = relation_name
+
+        # observe joined relations
         self.framework.observe(charm.on[relation_name].relation_changed,
                                self.on_relation_changed)
 
@@ -76,17 +80,20 @@ class Client(Object):
         return self._relation_name
 
     def on_relation_changed(self, event):
-        # TODO: Add some logic here to pick up the right relation in case
-        # the client charm is related to more than one unit. E.g. when the
-        # server is in HA mode.
-        relation = self.framework.model.relations[self.relation_name]
-        juju_app = relation.app.name
-        juju_model = self.framework.model.name
+        # emit the server details of the http connection
+        # which will give Grafana access to the data source
 
-        # Fetch the k8s Service resource fronting the server pods
-        service_spec = k8s.get_service_spec(juju_model=juju_model,
-                                            juju_app=juju_app)
+        # if there is no available unit,
+        if event.unit is None:
+            event.defer()  # TODO: verify that this is correct thing to do
+            return
+        host = event.relation.data[event.unit].get('ingress-address')
+        port = event.relation.data[event.unit].get('port')
+        if host is None or port is None:
+            log.debug("Invalid host/port for grafana-source relation.")
+            log.debug("Ensure 'ingress-address' and 'port' are in app data.")
+            event.defer()  # TODO: again, confirm that this is correct
+            return
 
-        server_details = ServerDetails(host=service_spec.host,
-                                       port=service_spec.port)
+        server_details = ServerDetails(host=host, port=port)
         self.on.server_available.emit(server_details)
