@@ -91,7 +91,9 @@ class Client(Object):
             event.defer()  # TODO: verify that this is correct thing to do
             return
 
-        # TODO: need confirmation that 'ingress address' is always available
+        # 'ingress-address' seems to be available in k8s and non-k8s charms
+        # but it also looks like 'private-address' is also used.
+        # TODO: the question is, which one should I use? Check both?
         host = event.relation.data[event.unit].get('ingress-address')
         port = event.relation.data[event.unit].get('port')
         if host is None or port is None:
