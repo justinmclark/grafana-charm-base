@@ -31,7 +31,8 @@ from oci_image import OCIImageResourceError
 
 class GrafanaBaseTest(unittest.TestCase):
 
-    def test__http_data_source(self):
+    def test__grafana_source_data(self):
+        # TODO: should adding and removing relation data be separate tests?
         harness = Harness(GrafanaBase, meta='''
             name: test-app
             requires:
@@ -42,7 +43,7 @@ class GrafanaBaseTest(unittest.TestCase):
         harness.begin()
         harness.set_leader(True)
         # observe events defined in the test class
-        self.assertEqual(harness.charm.store.sources, {})
+        self.assertEqual(harness.charm.datastore.sources, {})
 
         rel_id = harness.add_relation('grafana-source', 'prometheus')
         harness.add_relation_unit(rel_id, 'prometheus/0')
@@ -57,6 +58,7 @@ class GrafanaBaseTest(unittest.TestCase):
                                          'ingress-address': '192.0.2.1',
                                          'port': 1234,
                                      })
+        print(dict(harness.charm.datastore.sources[rel_id]))
         self.assertEqual(
             {
                 'host': '192.0.2.1',
@@ -64,5 +66,15 @@ class GrafanaBaseTest(unittest.TestCase):
                 'rel_name': 'grafana-source',
                 'rel_unit': 'prometheus/0'
             },
-            dict(harness.charm.store.sources[rel_id])
+            dict(harness.charm.datastore.sources[rel_id])
         )
+
+        # test that setting relation data to an empty dict causes
+        # the charm datastore to be cleared
+        harness.update_relation_data(rel_id,
+                                     'prometheus/0',
+                                     {
+                                         'ingress-address': None,
+                                         'port': None,
+                                     })
+        self.assertEqual(None, harness.charm.datastore.sources.get(rel_id))
