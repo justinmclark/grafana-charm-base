@@ -42,10 +42,7 @@ class GrafanaBaseTest(unittest.TestCase):
         harness.begin()
         harness.set_leader(True)
         # observe events defined in the test class
-        self.assertEqual(
-            harness.charm.grafana_source_conn,
-            {'host': None, 'port': None}
-        )
+        self.assertEqual(harness.charm.store.sources, {})
 
         rel_id = harness.add_relation('grafana-source', 'prometheus')
         harness.add_relation_unit(rel_id, 'prometheus/0')
@@ -61,6 +58,11 @@ class GrafanaBaseTest(unittest.TestCase):
                                          'port': 1234,
                                      })
         self.assertEqual(
-            {'host': '192.0.2.1', 'port': 1234},
-            harness.charm.grafana_source_conn
+            {
+                'host': '192.0.2.1',
+                'port': 1234,
+                'rel_name': 'grafana-source',
+                'rel_unit': 'prometheus/0'
+            },
+            dict(harness.charm.store.sources[rel_id])
         )

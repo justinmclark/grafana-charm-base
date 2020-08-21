@@ -18,7 +18,7 @@ class GrafanaBase(CharmBase):
     """ The GrafanaBase class defines the common characteristics between the
         Kubernetes and traditional Grafana charms such as """
 
-    state = StoredState()
+    store = StoredState()
 
     def __init__(self, *args):
         """Initialize charm and configure states and events to observe."""
@@ -34,9 +34,9 @@ class GrafanaBase(CharmBase):
                                self.on_http_source_available)
 
         # -- initialize states --
-        self.state.set_default(configured=False)
-        self.state.set_default(started=False)
-        self.state.set_default(sources=dict())
+        self.store.set_default(configured=False)
+        self.store.set_default(started=False)
+        self.store.set_default(sources=dict())
 
     def on_http_source_available(self, event):
         """This event handler (if the unit is the leader) will observe
@@ -54,7 +54,7 @@ class GrafanaBase(CharmBase):
 
         # if there is no available unit, remove data-source info if it exists
         if event.unit is None:
-            data_source = self.state.sources.pop(event.relation.id, None)
+            data_source = self.store.sources.pop(event.relation.id, None)
             log.warning("removing data source information from state."
                         "host: {0}, port: {1}.".format(
                             data_source['host'],
@@ -78,10 +78,10 @@ class GrafanaBase(CharmBase):
             self.model.status = BlockedStatus('Invalid data source host/port')
         else:
             # add the new connection info to the current state
-            self.state.sources.update({event.relation.id: {
+            self.store.sources.update({event.relation.id: {
                 'host': host,
                 'port': port,
                 'rel_name': event.relation.name,
-                'rel_unit': event.unit,
+                'rel_unit': event.unit.name,
             }})
             self.model.status = ActiveStatus('Ready to connect to data source.')
