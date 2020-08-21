@@ -37,7 +37,7 @@ class GrafanaBaseTest(unittest.TestCase):
             name: test-app
             requires:
                 grafana-source:
-                    interface: http
+                    interface: grafana-source
             ''')
         self.addCleanup(harness.cleanup)
         harness.begin()

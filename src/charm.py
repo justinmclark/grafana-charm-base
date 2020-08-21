@@ -96,5 +96,4 @@ class GrafanaBase(CharmBase):
                     "host: {0}, port: {1}.".format(
                         data_source['host'] if data_source else '',
                         data_source['port'] if data_source else '',
-                    )
-        )
+                    ))
