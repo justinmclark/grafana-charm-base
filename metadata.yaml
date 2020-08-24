@@ -1,4 +1,4 @@
-name: grafana-k8s
+name: grafana
 summary: Data vizualization for the charmed LMA stack
 maintainers:
     - Justin Clark <justin.clark@canonical.com>
@@ -26,3 +26,6 @@ requires:
         interface: grafana-source
     database:
         interface: db
+peers:
+    grafana:
+        interface: grafana
