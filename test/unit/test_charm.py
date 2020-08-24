@@ -67,22 +67,22 @@ class GrafanaBaseTest(unittest.TestCase):
         harness.begin()
         harness.set_leader(True)
         peer_rel_id = harness.add_relation('grafana', 'grafana')
+        peer_rel = harness.charm.model.get_relation('grafana')
         harness.add_relation_unit(peer_rel_id, 'grafana/1')
         self.assertTrue(harness.charm.has_peer)
         self.assertFalse(harness.charm.has_db)
         blocked_status = \
             BlockedStatus('Need database relation for HA Grafana.')
         self.assertEqual(harness.model.status, blocked_status)
-        for event_path, observer_path, method_name in harness.framework._storage.notices(None):
-            print(event_path, observer_path, method_name)
 
         # now add the database connection and the model should
         # have an active status
         db_rel_id = harness.add_relation('database', 'mysql')
         harness.add_relation_unit(db_rel_id, 'mysql/0')
+
+        # TODO: this is sort of a manual defer (and works) but I don't like it
+        harness.charm.on.grafana_relation_joined.emit(peer_rel)
         self.assertTrue(harness.charm.has_db)
         active_status = ActiveStatus('HA Grafana ready')
         # TODO: defer doesn't seem to work as expected here
         self.assertEqual(harness.model.status, active_status)
-        for event_path, observer_path, method_name in harness.framework._storage.notices(None):
-            print(event_path, observer_path, method_name)

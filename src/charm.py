@@ -16,7 +16,6 @@ log = logging.getLogger()
 #           and there is no DB relation (needed for an HA cluster), put charm in blocked state
 # TODO: 2) there is no use for a GrafanaBase (or any other base) at the moment - convert to K8s
 #           this mainly means that we will need pod_spec_set to be triggered
-# TODO: 3) related to #1, we need to allow for HA -- i.e. accept peer relations
 
 
 class GrafanaK8s(CharmBase):
@@ -42,7 +41,7 @@ class GrafanaK8s(CharmBase):
         self.framework.observe(self.on['grafana'].relation_joined,
                                self.on_peer_joined)
 
-        # -- database relation observations
+        # -- database (HA) relation observations
         self.framework.observe(self.on['database'].relation_joined,
                                self.on_database_joined)
 
@@ -149,4 +148,7 @@ class GrafanaK8s(CharmBase):
         # TODO: any leftover configuration for grafana units to communicate
 
     def on_database_joined(self, event):
-        pass
+        if not self.unit.is_leader():
+            return
+        # TODO: bad - remove this
+        #self.model.status = ActiveStatus('HA Grafana ready')
