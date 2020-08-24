@@ -63,8 +63,8 @@ class GrafanaBaseTest(unittest.TestCase):
             {
                 'host': '192.0.2.1',
                 'port': 1234,
-                'rel_name': 'grafana-source',
-                'rel_unit': 'prometheus/0'
+                'rel-name': 'grafana-source',
+                'source-name': 'prometheus/0'
             },
             dict(harness.charm.datastore.sources[rel_id])
         )

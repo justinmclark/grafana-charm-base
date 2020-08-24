@@ -67,10 +67,10 @@ class GrafanaBase(CharmBase):
         #       We might need to ensure data sources set these properly
         host = event.relation.data[event.unit].get('ingress-address')
         port = event.relation.data[event.unit].get('port')
-        name = event.relation.data[event.unit].get('name')
+        source_name = event.relation.data[event.unit].get('source-name')
 
-        if name is None:
-            name = event.unit.name
+        if source_name is None:
+            source_name = event.unit.name
             log.warning("No human readable name provided for grafana-source"
                         "relation. Defaulting to unit name.")
         if host is None or port is None:
@@ -83,8 +83,8 @@ class GrafanaBase(CharmBase):
             self.datastore.sources.update({event.relation.id: {
                 'host': host,
                 'port': port,
-                'name': name,
-                'rel_unit': event.unit.name,
+                'rel-name': event.relation.name,
+                'source-name': source_name,
             }})
             self.model.status = ActiveStatus('Ready to connect to data source.')
 
