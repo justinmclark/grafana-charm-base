@@ -12,10 +12,15 @@ tags:
     - prometheus
     - monitoring
 series:
-    - focal
-    - bionic
-    - xenial
+    - kubernetes
 requires:
+    # for example, a grafana-source could be prometheus
+    # there are a few required fields that incoming
+    # relations must share.
+    # - ingress-address
+    # - port (of the grafana source)
+    # - (not required) human readable name of the grafana source (e.g. Prometheus App X)
+    #   if a name is not given, the default will be unit name (e.g. prometheus/0)
     grafana-source:
         interface: grafana-source
     database:

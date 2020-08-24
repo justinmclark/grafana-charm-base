@@ -65,11 +65,14 @@ class GrafanaBase(CharmBase):
         # but it also looks like 'private-address' is also available.
         # TODO: the question is, which one should I use? Check both?
         #       We might need to ensure data sources set these properly
-        #       8/21/2020: we will need a better naming convention when setting name of data source (for the pod spec)
         host = event.relation.data[event.unit].get('ingress-address')
         port = event.relation.data[event.unit].get('port')
-        print(host)
-        print(port)
+        name = event.relation.data[event.unit].get('name')
+
+        if name is None:
+            name = event.unit.name
+            log.warning("No human readable name provided for grafana-source"
+                        "relation. Defaulting to unit name.")
         if host is None or port is None:
             log.debug("Invalid host and/or port for grafana-source relation.\n"
                       "Ensure 'ingress-address' and 'port' are in app data.")
@@ -80,7 +83,7 @@ class GrafanaBase(CharmBase):
             self.datastore.sources.update({event.relation.id: {
                 'host': host,
                 'port': port,
-                'rel_name': event.relation.name,  # TODO: see 8/21/2020 note above
+                'name': name,
                 'rel_unit': event.unit.name,
             }})
             self.model.status = ActiveStatus('Ready to connect to data source.')
