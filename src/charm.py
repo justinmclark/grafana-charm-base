@@ -90,13 +90,14 @@ class GrafanaBase(CharmBase):
 
     def on_grafana_source_departed(self, event):
         # TODO: do we need to check if unit is leader here?
-        self._remove_source_from_datastore(event.relation.id)
+        if self.unit.is_leader():
+            self._remove_source_from_datastore(event.relation.id)
 
     def _remove_source_from_datastore(self, rel_id):
         print('removing source from datastore')
         data_source = self.datastore.sources.pop(rel_id, None)
-        log.warning("removing data source information from state. "
-                    "host: {0}, port: {1}.".format(
-                        data_source['host'] if data_source else '',
-                        data_source['port'] if data_source else '',
-                    ))
+        log.info("removing data source information from state. "
+                 "host: {0}, port: {1}.".format(
+                     data_source['host'] if data_source else '',
+                     data_source['port'] if data_source else '',
+                 ))

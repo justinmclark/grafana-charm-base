@@ -19,8 +19,9 @@ requires:
     # relations must share.
     # - ingress-address
     # - port (of the grafana source)
-    # - (not required) human readable name of the grafana source (e.g. Prometheus App X)
-    #   if a name is not given, the default will be unit name (e.g. prometheus/0)
+    # - (not required) human readable 'source-name' of the grafana
+    #   source (e.g. Prometheus App X) if a 'source-name' is not given,
+    #   the default will be unit name (e.g. prometheus/0)
     grafana-source:
         interface: grafana-source
     database:
