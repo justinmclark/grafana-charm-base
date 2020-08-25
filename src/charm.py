@@ -1,8 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# TODO: there is no use for a GrafanaBase (or any other base) at the moment - convert to K8s
-#       this mainly means that we will need pod_spec_set to be triggered
+# TODO: set pod spec
 # TODO: create actions that will help users. e.g. "upload-dashboard"
 # TODO: limit the number of database relations to 1 so there isn't confusion in config
 
