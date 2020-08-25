@@ -33,26 +33,26 @@ class GrafanaBaseTest(unittest.TestCase):
         harness.update_relation_data(rel_id,
                                      'prometheus/0',
                                      {
-                                         'ingress-address': '192.0.2.1',
+                                         'host': '192.0.2.1',
                                          'port': 1234,
+                                         'source-type': 'prometheus'
                                      })
-        print(dict(harness.charm.datastore.sources[rel_id]))
         self.assertEqual(
             {
                 'host': '192.0.2.1',
                 'port': 1234,
-                'rel-name': 'grafana-source',
-                'source-name': 'prometheus/0'
+                'source-name': 'prometheus/0',
+                'source-type': 'prometheus',
             },
             dict(harness.charm.datastore.sources[rel_id])
         )
 
-        # test that setting relation data to an empty dict causes
-        # the charm datastore to be cleared
+        # test that clearing the relation data leads to
+        # the datastore for this data source being cleared
         harness.update_relation_data(rel_id,
                                      'prometheus/0',
                                      {
-                                         'ingress-address': None,
+                                         'host': None,
                                          'port': None,
                                      })
         self.assertEqual(None, harness.charm.datastore.sources.get(rel_id))
@@ -85,4 +85,7 @@ class GrafanaBaseTest(unittest.TestCase):
         self.assertTrue(harness.charm.has_db)
         maintenance_status = MaintenanceStatus('HA ready for configuration')
         # TODO: defer doesn't seem to work as expected here
-        # self.assertEqual(harness.model.status, maintenance_status)
+        self.assertEqual(harness.model.status, maintenance_status)
+
+    def test__database_relation_data(self):
+        pass
