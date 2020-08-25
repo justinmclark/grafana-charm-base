@@ -107,7 +107,7 @@ class GrafanaBaseTest(unittest.TestCase):
                                      'mysql/0',
                                      test_relation_data)
         # check that charm datastore was properly set
-        self.assertEqual(dict(harness.charm.datastore.database[rel_id]),
+        self.assertEqual(dict(harness.charm.datastore.database),
                          test_relation_data)
 
     def test__multiple_database_relation_handling(self):

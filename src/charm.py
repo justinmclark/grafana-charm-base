@@ -224,10 +224,10 @@ class GrafanaK8s(CharmBase):
             return
 
         # add the new database relation data to the current state
-        self.datastore.database.update({event.relation.id: {
+        self.datastore.database.update({
             field: value for field, value in database_fields.items()
             if value is not None
-        }})
+        })
 
         # TODO: set pod spec
 
