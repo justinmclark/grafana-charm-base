@@ -86,6 +86,12 @@ class GrafanaBaseTest(unittest.TestCase):
         # TODO: defer doesn't seem to work as expected here
         self.assertEqual(harness.model.status, maintenance_status)
 
+    def test__add_then_remove_peer_status_check(self):
+        """Ensure that adding and removing peer results in correct status."""
+        # TODO: this might require the test harness to properly defer
+        #       events, but could be tested with manual event.emit()s
+        #       as seen in the above test case
+
     def test__database_relation_data(self):
         harness = Harness(GrafanaK8s)
         self.addCleanup(harness.cleanup)

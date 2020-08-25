@@ -16,9 +16,9 @@ from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
 
 log = logging.getLogger()
 
-# These are the relation-data fields for this Grafana charm
+# These are the required and optional relation data fields
 # In other words, when relating to this charm, these are the fields
-# that will be observed by this charm.
+# that will be processed by this charm.
 
 REQUIRED_DATASOURCE_FIELDS = {
     'host',  # the hostname/IP of the data source server
@@ -32,8 +32,8 @@ OPTIONAL_DATASOURCE_FIELDS = {
 
 # https://grafana.com/docs/grafana/latest/administration/configuration/#database
 REQUIRED_DATABASE_FIELDS = {
-    'type',
-    'host',  # int the form '<url_or_ip>:<port>', e.g. 127.0.0.1:3306
+    'type',  # mysql, postgres or sqlite3 (sqlite3 doesn't work for HA)
+    'host',  # in the form '<url_or_ip>:<port>', e.g. 127.0.0.1:3306
     'name',
     'user',
     'password',
@@ -46,18 +46,18 @@ OPTIONAL_DATABASE_FIELDS = set()
 
 
 class GrafanaK8s(CharmBase):
-    """Charm to run Grafana data visualization on Kubernetes.
+    """Charm to run Grafana on Kubernetes.
 
-    This charm allows for high-availability (as long as a database relation
-    is present).
+    This charm allows for high-availability
+    (as long as a non-sqlite database relation is present).
 
     Developers of this charm should be aware of the Grafana provisioning docs:
     https://grafana.com/docs/grafana/latest/administration/provisioning/
     """
+
     datastore = StoredState()
 
     def __init__(self, *args):
-        """Initialize charm and configure states and events to observe."""
         super().__init__(*args)
 
         # get container image
@@ -96,16 +96,13 @@ class GrafanaK8s(CharmBase):
     def on_grafana_source_changed(self, event):
         """ Get relation data for Grafana source and set k8s pod spec.
 
-        This event handler (if the unit is the leader) will observe
-        an incoming grafana data source and make the relation data of the
-        source available in the app's datastore object (StoredState).
-
-        It verifies that the required fields have been passed and then
-        sets
+        This event handler (if the unit is the leader) will get data for
+        an incoming grafana-source relation and make the relation data
+        is available in the app's datastore object (StoredState).
         """
 
-        # if this unit is the leader, set the host/port
-        # of the data source in this application's data
+        # if this unit is the leader, set the required data
+        # of the grafana-source in this charm's datastore
         if not self.unit.is_leader():
             log.debug(f"{self.unit.name} is not leader. Cannot set app data.")
             return
@@ -144,11 +141,12 @@ class GrafanaK8s(CharmBase):
 
         # TODO: test this unit's status
         self.model.unit.status = \
-            MaintenanceStatus('Ready to connect to data source.')
+            MaintenanceStatus('Grafana ready for configuration')
 
         # TODO: real configuration -- set_pod_spec
 
     def on_grafana_source_departed(self, event):
+        """When a grafana-source is removed, delete from the datastore."""
         if self.unit.is_leader():
             self._remove_source_from_datastore(event.relation.id)
 
@@ -164,15 +162,15 @@ class GrafanaK8s(CharmBase):
                       f'Skipping on_peer_joined() handler')
             return
 
-        # checking self.has_peer in case this a deferred event and the
-        # original peer has been departed
+        # checking self.has_peer in case this is a deferred
+        # event and the original peer has been departed
         if not self.has_peer:
             self.model.status = \
                 MaintenanceStatus('Grafana ready for configuration')
             return
 
-        # if there a new peer relation but no database relation,
-        # we need to enter a blocked state.
+        # if there is a new peer relation but no database
+        # relation, we need to enter a blocked state.
         if not self.has_db:
             log.warning('No database relation provided to Grafana cluster. '
                         'Please add database (e.g. MySQL) before proceeding.')
@@ -222,7 +220,7 @@ class GrafanaK8s(CharmBase):
                       f"relation: {REQUIRED_DATABASE_FIELDS}")
             return
 
-        # add the new database relation data to the current state
+        # add the new database relation data to the datastore
         self.datastore.database.update({
             field: value for field, value in database_fields.items()
             if value is not None
@@ -236,7 +234,7 @@ class GrafanaK8s(CharmBase):
 
     def _remove_source_from_datastore(self, rel_id):
         # TODO: based on provisioning docs, we may want to add
-        #       'deleteDatasource to Grafana configuration file
+        #       'deleteDatasource' to Grafana configuration file
         data_source = self.datastore.sources.pop(rel_id, None)
         log.info('removing data source information from state. '
                  'host: {0}, port: {1}.'.format(
