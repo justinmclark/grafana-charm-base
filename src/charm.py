@@ -4,6 +4,7 @@
 # TODO: there is no use for a GrafanaBase (or any other base) at the moment - convert to K8s
 #       this mainly means that we will need pod_spec_set to be triggered
 # TODO: create actions that will help users. e.g. "upload-dashboard"
+# TODO: limit the number of database relations to 1 so there isn't confusion in config
 
 import logging
 
@@ -33,11 +34,16 @@ OPTIONAL_DATASOURCE_FIELDS = {
 # https://grafana.com/docs/grafana/latest/administration/configuration/#database
 REQUIRED_DATABASE_FIELDS = {
     'type',
-    'host',
+    'host',  # int the form '<url_or_ip>:<port>', e.g. 127.0.0.1:3306
     'name',
     'user',
     'password',
 }
+
+# verify with Grafana documentation to ensure fields have valid values
+# as this charm will not directly handle these cases
+# TODO: fill up with optional fields - leaving blank for now
+OPTIONAL_DATABASE_FIELDS = set()
 
 
 class GrafanaK8s(CharmBase):
@@ -120,10 +126,8 @@ class GrafanaK8s(CharmBase):
         # check the relation data for missing required fields
         if not all([datasource_fields.get(field) for field in
                     REQUIRED_DATASOURCE_FIELDS]):
-            # TODO: should this be error?
-            log.warning(f"Missing required data fields for grafana-source "
-                        f"relation: {REQUIRED_DATASOURCE_FIELDS}")
-            # TODO: add test for this unit's status
+            log.error(f"Missing required data fields for grafana-source "
+                      f"relation: {REQUIRED_DATASOURCE_FIELDS}")
             self._remove_source_from_datastore(event.relation.id)
             return
 
@@ -133,7 +137,7 @@ class GrafanaK8s(CharmBase):
             log.warning("No human readable name provided for 'grafana-source'"
                         "relation. Defaulting to unit name.")
 
-        # add the new connection info to the current state
+        # add the new datasource relation data to the current state
         self.datastore.sources.update({event.relation.id: {
             field: value for field, value in datasource_fields.items()
             if value is not None
@@ -197,6 +201,7 @@ class GrafanaK8s(CharmBase):
         pass
 
     def on_database_changed(self, event):
+        """Sets configuration information for database connection."""
         if not self.unit.is_leader():
             log.debug(f'{self.unit.name} is not leader. '
                       f'Skipping on_database_changed() handler')
@@ -207,8 +212,24 @@ class GrafanaK8s(CharmBase):
             return
 
         # save the necessary configuration of this database connection
-        # https://grafana.com/docs/grafana/latest/administration/configuration/#database
-        # TODO: get config
+        database_fields = \
+            {field: event.relation.data[event.unit].get(field) for field in
+             REQUIRED_DATABASE_FIELDS | OPTIONAL_DATABASE_FIELDS}
+
+        # if any required fields are missing, warn the user and return
+        if not all([database_fields.get(field) for field in
+                    REQUIRED_DATABASE_FIELDS]):
+            log.error(f"Missing required data fields for related database "
+                      f"relation: {REQUIRED_DATABASE_FIELDS}")
+            return
+
+        # add the new database relation data to the current state
+        self.datastore.database.update({event.relation.id: {
+            field: value for field, value in database_fields.items()
+            if value is not None
+        }})
+
+        # TODO: set pod spec
 
     def on_database_departed(self, event):
         # TODO
@@ -226,4 +247,4 @@ class GrafanaK8s(CharmBase):
 
     def _set_pod_spec(self):
         """Sets the Grafana pod spec with data in `self.datastore`."""
-        #
+        # TODO

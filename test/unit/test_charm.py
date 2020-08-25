@@ -20,7 +20,6 @@ class GrafanaBaseTest(unittest.TestCase):
         self.addCleanup(harness.cleanup)
         harness.begin()
         harness.set_leader(True)
-        # observe events defined in the test class
         self.assertEqual(harness.charm.datastore.sources, {})
 
         rel_id = harness.add_relation('grafana-source', 'prometheus')
@@ -88,4 +87,29 @@ class GrafanaBaseTest(unittest.TestCase):
         self.assertEqual(harness.model.status, maintenance_status)
 
     def test__database_relation_data(self):
+        harness = Harness(GrafanaK8s)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        harness.set_leader(True)
+        self.assertEqual(harness.charm.datastore.database, {})
+
+        # add relation and update relation data
+        rel_id = harness.add_relation('database', 'mysql')
+        harness.add_relation_unit(rel_id, 'mysql/0')
+        test_relation_data = {
+             'type': 'mysql',
+             'host': '0.1.2.3:3306',
+             'name': 'my-test-db',
+             'user': 'test-user',
+             'password': 'super!secret!password',
+        }
+        harness.update_relation_data(rel_id,
+                                     'mysql/0',
+                                     test_relation_data)
+        # check that charm datastore was properly set
+        self.assertEqual(dict(harness.charm.datastore.database[rel_id]),
+                         test_relation_data)
+
+    def test__multiple_database_relation_handling(self):
+        # TODO
         pass
