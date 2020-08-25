@@ -16,6 +16,7 @@ log = logging.getLogger()
 #           and there is no DB relation (needed for an HA cluster), put charm in blocked state
 # TODO: 2) there is no use for a GrafanaBase (or any other base) at the moment - convert to K8s
 #           this mainly means that we will need pod_spec_set to be triggered
+# TODO: 3) create list of actions that will help users. e.g. "upload-dashboard"
 
 
 class GrafanaK8s(CharmBase):
@@ -41,14 +42,17 @@ class GrafanaK8s(CharmBase):
         self.framework.observe(self.on['grafana'].relation_joined,
                                self.on_peer_joined)
 
-        # -- database (HA) relation observations
+        # -- database relation observations
         self.framework.observe(self.on['database'].relation_joined,
                                self.on_database_joined)
+        self.framework.observe(self.on['database'].relation_changed,
+                               self.on_database_changed)
 
         # -- initialize states --
         self.datastore.set_default(configured=False)
         self.datastore.set_default(started=False)
-        self.datastore.set_default(sources=dict())
+        self.datastore.set_default(sources=dict())  # available data sources
+        self.datastore.set_default(database=dict())  # db configuration
 
     @property
     def has_peer(self) -> bool:
@@ -73,82 +77,98 @@ class GrafanaK8s(CharmBase):
         # if there is no available unit, remove data-source info if it exists
         if event.unit is None:
             self._remove_source_from_datastore(event.relation.id)
-            log.warning("event.unit can't be None when setting data sources.")
+            log.warning("event unit can't be None when setting data sources.")
             return
 
-        # 'ingress-address' seems to be available in k8s and non-k8s charms
-        # but it also looks like 'private-address' is also available.
-        # TODO: the question is, which one should I use? Check both?
-        #       We might need to ensure data sources set these properly
+        # TODO: figure out a guarantee that this info is passed
         host = event.relation.data[event.unit].get('ingress-address')
         port = event.relation.data[event.unit].get('port')
         source_name = event.relation.data[event.unit].get('source-name')
 
+        # check the relation data for problems
+        if host is None or port is None:
+            # TODO: should this be error?
+            log.warning("Invalid host and/or port for grafana-source relation. "
+                        "Ensure 'ingress-address' and 'port' are in app data.")
+            # TODO: add test for this unit's status
+            self._remove_source_from_datastore(event.relation.id)
+            return
+
         if source_name is None:
             source_name = event.unit.name
-            log.warning("No human readable name provided for grafana-source"
+            log.warning("No human readable name provided for 'grafana-source'"
                         "relation. Defaulting to unit name.")
-        if host is None or port is None:
-            log.debug("Invalid host and/or port for grafana-source relation. "
-                      "Ensure 'ingress-address' and 'port' are in app data.")
-            # TODO: add test for this unit's status
-            event.unit.status = BlockedStatus('Invalid data source host/port')
-            self._remove_source_from_datastore(event.relation.id)
-        else:
-            # add the new connection info to the current state
-            self.datastore.sources.update({event.relation.id: {
-                'host': host,
-                'port': port,
-                'rel-name': event.relation.name,
-                'source-name': source_name,
-            }})
-            # TODO: test this unit's status
-            self.model.unit.status = \
-                ActiveStatus('Ready to connect to data source.')
+
+        # add the new connection info to the current state
+        self.datastore.sources.update({event.relation.id: {
+            'host': host,
+            'port': port,
+            'rel-name': event.relation.name,
+            'source-name': source_name,
+        }})
+        # TODO: test this unit's status
+        self.model.unit.status = \
+            MaintenanceStatus('Ready to connect to data source.')
+
+        # TODO: real configuration -- set_pod_spec
 
     def on_grafana_source_departed(self, event):
-        # TODO: do we need to check if unit is leader here?
-        #       I'm leaving it for now because it makes sense that only
-        #       the leader should modify the datastore
         if self.unit.is_leader():
             self._remove_source_from_datastore(event.relation.id)
 
     def _remove_source_from_datastore(self, rel_id):
         data_source = self.datastore.sources.pop(rel_id, None)
-        log.info("removing data source information from state. "
-                 "host: {0}, port: {1}.".format(
+        log.info('removing data source information from state. '
+                 'host: {0}, port: {1}.'.format(
                      data_source['host'] if data_source else '',
                      data_source['port'] if data_source else '',
                  ))
 
     def on_peer_joined(self, event):
-        """This handler needs to take care of the following things:
-            - Make sure we have a HA database relation available
-            - Configure communication between"""
+        """This event handler's primary goal is to ensure Grafana HA
+        is possible since it needs a proper database connection.
+        (e.g. MySQL or Postgresql)
+        """
         if not self.unit.is_leader():
+            log.debug(f'{self.unit.name} is not leader. '
+                      f'Skipping on_peer_joined() handler')
             return
 
         # if there a new peer relation but no database relation,
         # we need to enter a blocked state
         if not self.has_db:
-            self.model.status = \
-                BlockedStatus('Need database relation for HA Grafana.')
             log.warning('No database relation provided to Grafana cluster. '
                         'Please add database (e.g. MySQL) before proceeding.')
+            self.model.status = \
+                BlockedStatus('Need database relation for HA Grafana.')
 
-            # TODO: my thought is to defer this event until a
-            #       database has joined. But I could also take care
-            #       of this in the "on_database_joined" handler.
-            #       ** Deferring does not seem to work in current test case
+            # Keep deferring this event until a database relation has joined
+            # To unit test this, we may need to manually emit from the harness
             event.defer()
             return
-        else:
-            self.model.status = ActiveStatus('HA Grafana ready')
 
-        # TODO: any leftover configuration for grafana units to communicate
+        # let Juju operators know that HA is now possible
+        self.model.status = MaintenanceStatus('HA ready for configuration')
 
     def on_database_joined(self, event):
         if not self.unit.is_leader():
+            log.debug(f'{self.unit.name} is not leader. '
+                      f'Skipping on_database_joined() handler')
             return
-        # TODO: bad - remove this
-        #self.model.status = ActiveStatus('HA Grafana ready')
+
+        # TODO: so far this is just a place holder
+
+    def on_database_changed(self, event):
+        if not self.unit.is_leader():
+            log.debug(f'{self.unit.name} is not leader. '
+                      f'Skipping on_database_changed() handler')
+            return
+
+        # if there is no available unit, remove data-source info if it exists
+        if event.unit is None:
+            log.warning("event unit can't be None when setting db config.")
+            return
+
+        # save the necessary configuration of this database connection
+        # https://grafana.com/docs/grafana/latest/administration/configuration/#database
+
