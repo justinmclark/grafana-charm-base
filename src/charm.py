@@ -78,6 +78,8 @@ class GrafanaK8s(CharmBase):
                                self.on_database_joined)
         self.framework.observe(self.on['database'].relation_changed,
                                self.on_database_changed)
+        self.framework.observe(self.on['database'].relation_departed,
+                               self.on_database_departed)
 
         # -- initialize states --
         self.datastore.set_default(configured=False)
@@ -229,8 +231,16 @@ class GrafanaK8s(CharmBase):
         # TODO: set pod spec
 
     def on_database_departed(self, event):
-        # TODO
-        pass
+        """Removes database connection info from datastore."""
+        print('IN DATABASE DEPARTED')
+        if not self.unit.is_leader():
+            log.debug(f'{self.unit.name} is not leader. '
+                      f'Skipping on_database_departed() handler')
+            return
+
+        # remove the existing database info from datastore
+        print('EMTPYING DATASTORE')
+        self.datastore.database = dict()
 
     def _remove_source_from_datastore(self, rel_id):
         # TODO: based on provisioning docs, we may want to add

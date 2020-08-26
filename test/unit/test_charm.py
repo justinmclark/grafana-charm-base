@@ -12,7 +12,7 @@ from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
 from charm import GrafanaK8s
 
 
-class GrafanaBaseTest(unittest.TestCase):
+class GrafanaCharmTest(unittest.TestCase):
 
     def test__grafana_source_data(self):
         # TODO: should adding and removing relation data be separate tests?
@@ -101,6 +101,7 @@ class GrafanaBaseTest(unittest.TestCase):
 
         # add relation and update relation data
         rel_id = harness.add_relation('database', 'mysql')
+        rel = harness.charm.model.get_relation('database')
         harness.add_relation_unit(rel_id, 'mysql/0')
         test_relation_data = {
              'type': 'mysql',
@@ -115,6 +116,11 @@ class GrafanaBaseTest(unittest.TestCase):
         # check that charm datastore was properly set
         self.assertEqual(dict(harness.charm.datastore.database),
                          test_relation_data)
+
+        # now depart this relation and ensure the datastore is emptied
+        harness.charm.on.database_relation_departed.emit(rel)
+        print(harness._get_backend_calls())
+        self.assertEqual({}, dict(harness.charm.datastore.database))
 
     def test__multiple_database_relation_handling(self):
         # TODO
