@@ -1,3 +1,5 @@
+**THIS IS AN ARCHIVED REPO -- UPDATES CAN BE FOUND AT THE OFFICIAL REPO: https://github.com/canonical/grafana-operator**
+
 # charm-k8s-grafana
 
 ## Description
